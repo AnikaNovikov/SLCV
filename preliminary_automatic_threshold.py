@@ -13,36 +13,59 @@ if len(sys.argv)<2:
 else:
 	folder=sys.argv[1]
 
+
 def getThreshold(img):
+        """This function automatically attempts to threshold an image to exclude gap regions
+	
+	Parameters
+	----------
+	img : 3-dimensional array of type np.uint8
+		raw image
+	
+	Returns
+	-------
+	int
+		The suggested threshold value for the image
+	"""
 	bins=35
 	pixels=img.shape[0]*img.shape[1]
+	#fix upper limit percentage of pixels expected to be a gap
 	percentageup=pixels*0.3
+	#fix plausible lower percentage of pixels expected to be a gap
 	percentagedown=pixels*0.05
 	show=0
 	peaks=[[0]]
 	choose=0
 	iter=0
+	#while there are not enough pixels assigned to a gap region and bin size is not too small
 	while np.sum(show)<percentagedown and iter<5:
 		a=np.histogram(img[:,:,2],bins=bins)
+		#determine the local maxima of the intensity histogram
 		peaks=argrelextrema(a[0],np.greater)
+		#extract the first local maximum
 		threshold=int(round(a[1][peaks[0][0]+1]))
 		show=img[:,:,2]<threshold
+		#increase bin size to make histogram more fine graded, make maxima easier detectable
 		bins=bins+15
 		iter+=1
-	
+
+	#still too few pixels assigned to a gap region, smaller bin size does not help
 	if np.sum(show)<percentagedown and iter>=5:
 		bins=35
 		show=0
 		peaks=[[0]]
 		iter=0
+		#repeat the process like before
 		while np.sum(show)<percentagedown and iter<5:
 			a=np.histogram(img[:,:,2],bins=bins)
 			peaks=argrelextrema(a[0],np.greater)
+			#extract the second maximum
 			threshold=int(round(a[1][peaks[0][1]+1]))
 			show=img[:,:,2]<threshold
 			bins=bins+15
 			iter+=1
-	
+        
+	#if now too many pixels are assigned to be in a gap, accept the solution with the next bigger bin size
 	while np.sum(show)>percentageup and bins>15:
 		bins=bins-15
 		a=np.histogram(img[:,:,2],bins=bins)
@@ -54,7 +77,8 @@ def getThreshold(img):
 		else:
 			threshold=int(round(a[1][peaks[0][0]+1]))
 		show=img[:,:,2]<threshold
-	
+        
+	#if none of the above strategies help, give up
 	if bins<=15:
 		print("failed")
 		threshold=0
@@ -70,32 +94,7 @@ if os.path.isfile(folder):
 elif os.path.isdir(folder):
 	for fl in os.listdir(folder):
 		img = cv2.imread(folder+"/"+fl)
-		if img.rfind("_initial")>-1:
-                        continue
-                elif img.rfind("_Result")>-1:
-                        continue
-                elif img.rfind("_Seed")>-1:
-                        continue
-                elif img.rfind("_Result")>-1:
-                        continue
-                elif img.rfind("_Hessian")>-1:
-                        continue
-                elif img.rfind("_Morphsnakes")>-1:
-                        continue
-                elif img.rfind("_Segmentation")>-1:
-                        continue
-                elif img.rfind("_Noise")>-1:
-                        continue
-                elif img.rfind("_dilation")>-1:
-                        continue
-                elif img.rfind(".pck")>-1:
-                        continue
 		threshold=getThreshold(img)
-		#show = img[:,:,2].copy()
-		#show[show<threshold]=0
-		#cv2.imwrite(folder+"/"+fl+"_initial.tif",show)
-		#pl.imshow(show)
-		#pl.show()
                 
                 new_IMG = img.copy()
                 new_IMG[:,:,2] = np.where(img[:,:,2] < threshold, 0, img[:,:,2])
