@@ -5,6 +5,9 @@ import cv2
 import os
 import sys
 
+lowerthr=50
+upperthr=150
+
 if len(sys.argv)<2:
 	print("Please input a folder of raw images or the path to a single raw image")
 else:
@@ -13,7 +16,7 @@ else:
 def getThreshold(img):
 	bins=35
 	pixels=img.shape[0]*img.shape[1]
-	percentageup=pixels*0.4
+	percentageup=pixels*0.3
 	percentagedown=pixels*0.05
 	show=0
 	peaks=[[0]]
@@ -63,15 +66,51 @@ if os.path.isfile(folder):
 	threshold=getThreshold(img)
 	show = img[:,:,2].copy()
 	show[show<threshold]=0
-	cv2.imwrite(folder+"_thresholded.tif",show)
+	cv2.imwrite(folder+"_initial.tif",show)
 elif os.path.isdir(folder):
 	for fl in os.listdir(folder):
 		img = cv2.imread(folder+"/"+fl)
+		if img.rfind("_initial")>-1:
+                        continue
+                elif img.rfind("_Result")>-1:
+                        continue
+                elif img.rfind("_Seed")>-1:
+                        continue
+                elif img.rfind("_Result")>-1:
+                        continue
+                elif img.rfind("_Hessian")>-1:
+                        continue
+                elif img.rfind("_Morphsnakes")>-1:
+                        continue
+                elif img.rfind("_Segmentation")>-1:
+                        continue
+                elif img.rfind("_Noise")>-1:
+                        continue
+                elif img.rfind("_dilation")>-1:
+                        continue
+                elif img.rfind(".pck")>-1:
+                        continue
 		threshold=getThreshold(img)
-		show = img[:,:,2].copy()
-		show[show<threshold]=0
-		cv2.imwrite(folder+"/"+fl+"_thresholded.tif",show)
+		#show = img[:,:,2].copy()
+		#show[show<threshold]=0
+		#cv2.imwrite(folder+"/"+fl+"_initial.tif",show)
 		#pl.imshow(show)
 		#pl.show()
+                
+                new_IMG = img.copy()
+                new_IMG[:,:,2] = np.where(img[:,:,2] < threshold, 0, img[:,:,2])
+        	shift = (lowerthr-threshold)
+                
+                nonzero = np.where(new_IMG[:,:,2] == 0, False, True)
+        	new_IMG_2 = new_IMG.copy().astype(np.uint16)
+        	new_IMG_2[:,:,2] = np.where(nonzero, new_IMG_2[:,:,2] + shift, new_IMG_2[:,:,2])
+        	new_IMG_2[:,:,2] = np.where(new_IMG_2[:,:,2] > 50000, 0, new_IMG_2[:,:,2])
+                new_IMG_2[:,:,2] = np.where(new_IMG_2[:,:,2] > 255, 255, new_IMG_2[:,:,2])
+                new_IMG_2 = new_IMG_2.astype(np.uint8)
+                
+                cv2.imwrite(folder+"/"+fl[:-4]+"_initial.tif",new_IMG_2)
+
+
+		
 else:
 	print("Input is neither a file nor a directory, exiting...")
